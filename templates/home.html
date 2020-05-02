@@ -1,0 +1,179 @@
+{% extends "layout.html" %}
+<!--继承基础模板-->
+
+
+{% block scrip%}
+<script src="{{ url_for('static', filename='js/socket.io.min.js')}}"></script>
+<script src="{{ url_for('static', filename='js/echarts.min.js')}}"></script>
+<script src="{{ url_for('static', filename='js/raphael-2.1.4.min.js')}}"></script>
+<script src="{{ url_for('static', filename='js/justgage.js')}}"></script>
+{% endblock%}
+
+{% block body %}
+<div class="container">
+    <div class="row clearfix">
+        <div class="row clearfix">
+            <div class="widget-header">
+                <h4>实时曲线</h4>
+
+            </div>
+
+            <div class="widget-content" id="main" style="height:380px;border:1px solid #ccc;">
+            </div>
+        </div>
+    </div>
+    <br>
+    <div class="row clearfix">
+
+        <div class="row clearfix">
+            <div class="col-md-6 " style="text-align:left">
+                <h4>子机温度</h4>
+            </div>
+
+        </div>
+
+        <div class=" row clearfix">
+
+            <div class="col-md-3 widget-content" id="g1" style="height:250px;border:1px solid #ccc;">
+            </div>
+
+            <div class="col-md-3 widget-content" id="g2" style="height: 250px;border:1px solid #ccc;">
+            </div>
+
+            <div class="col-md-3 widget-content" id="g3" style="height: 250px;border:1px solid #ccc;">
+            </div>
+
+            <div class="col-md-3 widget-content" id="g4" style="height: 250px;border:1px solid #ccc;">
+            </div>
+        </div>
+
+    </div>
+</div>
+
+
+<script type="text/javascript">
+
+    var myChart = echarts.init(document.getElementById('main'));
+    var option = {
+        tooltip: {
+            trigger: 'axis'
+        },
+        legend: {
+            data: ['实时温度', '预设温度']
+        },
+        grid: {
+            left: '3%',
+            right: '4%',
+            bottom: '3%',
+            containLabel: true
+        },
+        xAxis: {
+            data: []
+        },
+        yAxis: {},
+        series: [{
+            name: '实时温度',
+            type: 'line',
+            data: []
+        }, {
+            name: '预设温度',
+            type: 'line',
+            data: []
+        }]
+    };
+
+    myChart.setOption(option);
+
+    var time = ["", "", "", "", "", "", "", "", "", ""]
+    var temp = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    var pres = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+
+    myChart.showLoading(); // 首次显示加载动画
+
+
+    // 四个温度仪表盘
+    var g1 = new JustGage({
+        id: "g1",
+        value: 50,
+        valueFontColor: "#000000",
+        min: 10,
+        max: 220,
+        title: "温度(℃)",
+        label: "1"
+    });
+    var g2 = new JustGage({
+        id: "g2",
+        value: 80,
+        valueFontColor: "#000000",
+        min: 10,
+        max: 220,
+        title: "温度(℃)",
+        label: "2"
+    });
+    var g3 = new JustGage({
+        id: "g3",
+        value: 120,
+        valueFontColor: "#000000",
+        min: 10,
+        max: 220,
+        title: "温度(℃)",
+        label: "3"
+    });
+    var g4 = new JustGage({
+        id: "g4",
+        value: Math.random() * 100,
+        valueFontColor: "#000000",
+        min: 10,
+        max: 220,
+        title: "温度(℃)",
+        label: "4"
+    });
+
+    function update_mychart(res) {
+        myChart.hideLoading();
+        time.push(res.time);
+        temp.push(parseFloat(res.cpu[0]));
+        pres.push(parseFloat(res.cpu[1]));
+        if (time.length >= 10) {
+            time.shift();
+            temp.shift();
+            pres.shift();
+        }
+
+        myChart.setOption({
+            // 填入数据
+            xAxis: {
+                data: time
+            },
+            series: [{
+                name: '实时温度',
+                data: temp
+            }, {
+                name: '预设温度',
+                data: pres
+            }]
+        });
+
+        //温度仪表盘刷新数据 
+        g1.refresh(res.tempure[0]);
+        g2.refresh(res.tempure[1]);
+        g3.refresh(res.tempure[2]);
+        g4.refresh(res.tempure[3]);
+    };
+
+    $(document).ready(function () {
+
+        // 建立socket连接，等待服务器“推送”数据，用回调函数更新图表
+        namespace = '/sentdata';
+        var socket = io.connect(location.protocol + '//' + document.domain + ':' + location.port + namespace);
+        socket.on('server_response', function (res) {
+            update_mychart(res);
+
+        });
+
+    });
+
+
+</script>
+
+{% endblock %}
